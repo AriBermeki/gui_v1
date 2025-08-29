@@ -29,7 +29,8 @@ async def mul(x: int, y: int) -> int:
     return x * y
 
 
-
+def on_ipc(data):
+    return asyncio.run(handle_ipc_message(data))
 
 if __name__ == "__main__":
     """
@@ -38,6 +39,6 @@ if __name__ == "__main__":
     - html: the HTML template string defined earlier
     """
     create_webframe(
-        handler=handle_ipc_message,
+        handler=on_ipc,
         html=html
     )

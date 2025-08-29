@@ -66,6 +66,38 @@ impl<T: Serialize> From<Request<T>> for SerdeRequest<T> {
 ///
 /// # Returns
 /// A closure that can be passed directly to Wry as an IPC handler.
+ pub fn handle_ipc_req(
+    handler: Py<PyAny>,
+    proxy: tao::event_loop::EventLoopProxy<RuntimeMessage>,
+) -> impl Fn(Request<String>) + 'static {
+    move |_req: Request<String>| {
+        let p = proxy.clone();
+        Python::with_gil(|py| {
+            let req = SerdeRequest::from(_req);
+            let json = serde_json::to_string_pretty(&req).unwrap();
+            // match expression *without* a trailing semicolon, so it is returned
+            let handler = handler.clone_ref(py);
+            match handler.call1(py, (json,)) {
+                Ok(res) => {
+                    let proxy = p.clone();
+                    let script = res.extract::<String>(py).unwrap();
+                    let _ = proxy.send_event(RuntimeMessage::Eval(script));
+                }
+                Err(error) => {
+                    eprintln!("Some Error: {:?}", error);
+                    // Nur eine Fehlermeldung ausgeben
+                }
+            };
+        });
+    }
+}
+
+
+
+
+
+/* 
+
 pub fn handle_ipc_req(
     handler: Py<PyAny>,
     proxy: tao::event_loop::EventLoopProxy<RuntimeMessage>,
@@ -90,3 +122,7 @@ pub fn handle_ipc_req(
         });
     }
 }
+
+
+
+*/
