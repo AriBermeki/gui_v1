@@ -13,7 +13,7 @@ def _html():
       <h2 style="position: absolute; top: 40%; left: 50%; transform: translate(-40%, -40%);">Do check the issue, HTML file not found.</h2>
       """
   else:
-      with open(HTML_SRC) as f:
+      with open(HTML_SRC, encoding="utf-8") as f:
           html = f.read()
   return html
 
