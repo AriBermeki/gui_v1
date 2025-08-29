@@ -150,6 +150,7 @@ fn create_webframe(handler: Py<PyAny>, html: String) -> PyResult<()> {
     let _webview = wry::WebViewBuilder::new()
         .with_ipc_handler(handle_ipc_req(handler))
         .with_html(&html)
+        .with_devtools(true)
         .build(&window)
         .map_err(|err| pyo3::exceptions::PyRuntimeError::new_err(err.to_string()))?;
 

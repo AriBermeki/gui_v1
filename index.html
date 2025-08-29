@@ -95,7 +95,8 @@
       function submitForm() {
         const username = document.getElementById("username").value;
         const password = document.getElementById("password").value;
-        window.ipc.postMessage({ action: "login", username, password });
+        payload = JSON.stringify({ action: "login", username, password });
+        window.ipc.postMessage(payload);
         document.getElementById("msg").innerText = "Sending login request...";
       }
     </script>
