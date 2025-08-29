@@ -1,4 +1,5 @@
 from frame import create_webframe
+from frame_api import handle_ipc_message
 from pathlib import Path
 
 # Path object for current script
@@ -18,8 +19,8 @@ def _html():
 html = _html()
 
 
-def on_ipc(msg):
-    print("IPC from WebView:", msg)
+async def on_ipc(msg):
+    await handle_ipc_message(msg)
 
 
 create_webframe(
