@@ -28,7 +28,13 @@ async def mul(x: int, y: int) -> int:
     await asyncio.sleep(0.1)
     return x * y
 
-
+@ipc_command
+async def set_title(title: str) -> int:
+    await asyncio.sleep(0.1)
+    return x * y
+    
+    
+    
 def on_ipc(data):
     return asyncio.run(handle_ipc_message(data))
 
