@@ -1,6 +1,6 @@
 import asyncio
 from frame import create_webframe
-from frame_api import handle_ipc_message, ipc_command,  handle_event_loop_response, gui_endless_event_loop_tasks
+from frame_api import handle_ipc_message, ipc_command,  handle_event_loop_response, gui_endless_event_loop_tasks,eventloop_event_register_typed
 from pathlib import Path
 
 # Path object for current script
