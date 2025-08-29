@@ -29,12 +29,13 @@ async def mul(x: int, y: int) -> int:
     return x * y
 
 @ipc_command
-async def set_title(title: str) -> int:
-    await asyncio.sleep(0.1)
-    return x * y
+async def set_title(title: str) -> bool:
+    res = await eventloop_event_register_typed("window.set_title",{"title":title},bool)
+    return res
     
-    
-    
+
+
+
 def on_ipc(data):
     return asyncio.run(handle_ipc_message(data))
 
