@@ -25,6 +25,7 @@
 //!
 //! html = "<html><body><script>window.ipc.postMessage('Hello')</script></body></html>"
 //! frame.create_webframe(on_ipc, html)
+//! some test
 //! ```
 
 use pyo3::prelude::*;
