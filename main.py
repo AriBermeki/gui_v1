@@ -1,5 +1,6 @@
+import asyncio
 from frame import create_webframe
-from frame_api import handle_ipc_message
+from frame_api import handle_ipc_message, ipc_command
 from pathlib import Path
 
 # Path object for current script
@@ -18,12 +19,25 @@ def _html():
 
 html = _html()
 
+@ipc_command
+def add(x: int, y: int) -> int:
+    return x + y
 
-async def on_ipc(msg):
-    await handle_ipc_message(msg)
+@ipc_command
+async def mul(x: int, y: int) -> int:
+    await asyncio.sleep(0.1)
+    return x * y
 
 
-create_webframe(
-    handler=on_ipc,
-    html=html
-)
+
+
+if __name__ == "__main__":
+    """
+    Launch the webframe with:
+    - handler: the async function above to process messages from JS
+    - html: the HTML template string defined earlier
+    """
+    create_webframe(
+        handler=handle_ipc_message,
+        html=html
+    )
