@@ -65,7 +65,7 @@ pub enum RuntimeMessage {
 }
 
 #[pyfunction]
-fn create_webframe(handler: Py<PyAny>, html: String) -> PyResult<()> {
+fn create_webframe(handler: Py<PyAny>, html: String, event_sender: Py<PyAny>) -> PyResult<()> {
     let event_loop = EventLoopBuilder::<RuntimeMessage>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     let window = tao::window::WindowBuilder::new()
