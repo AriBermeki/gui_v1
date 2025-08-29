@@ -35,6 +35,7 @@
         error_id,
         payload: args,
       };
+      console.log(message)
 
       window.ipc.postMessage(message);
     });

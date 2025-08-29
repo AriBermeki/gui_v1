@@ -51,14 +51,12 @@ async def dispatch(name: str, args: List[Any]) -> Any:
 
 
 
-
-
-async def handle_ipc_message(raw: str) -> None:
+async def handle_ipc_message(raw: str) -> str:
     """
     Handle an IPC message from window.ipc.postMessage (JS).
     
     raw: JSON string from JS
-    send: function to send JS code back into the WebView (e.g. window.eval)
+    Returns: JS code string (to be eval'd by Rust/Wry)
     """
     try:
         msg = json.loads(raw)
@@ -69,52 +67,14 @@ async def handle_ipc_message(raw: str) -> None:
 
         try:
             result = await dispatch(cmd, args)
-            # Call the temporary JS callback function
+            # Erfolgreich → Callback aufrufen
             js_code = f"window._{result_id}({json.dumps(result)});"
-            print(js_code)
         except Exception as e:
+            # Fehler → Error-Callback
             js_code = f"window._{error_id}({json.dumps(str(e))});"
-            print(js_code)
 
-        # send back JS code to execute inside the WebView
-        # send(js_code)
+        return js_code
 
     except Exception as e:
-        print("IPC error:", e)
-
-
-""" 
-
-Example Usage
-
-
-
-
-@command
-def add(x: int, y: int) -> int:
-    return x + y
-
-@command
-async def mul(x: int, y: int) -> int:
-    await asyncio.sleep(0.1)
-    return x * y
-
-
-async def main() -> None:
-    result_add: int = await dispatch("add", [2, 3])
-    result_mul: int = await dispatch("mul", [2, 3])
-
-    print(result_add)  # 5
-    print(result_mul)  # 6
-
-
-if __name__ == "__main__":
-    create_webframe(
-        html= html,
-        ipc=handle_ipc
-    )
-
-
-
-
-"""
+        # Top-Level Fehler → ebenfalls als String zurückgeben
+        return f"console.error('IPC error: {json.dumps(str(e))}');"

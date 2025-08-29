@@ -4,7 +4,7 @@ use pyo3::{types::PyAnyMethods, Py, PyAny, PyResult, Python};
 ///
 /// If called from Python in an async context, this will return
 /// the created Task object. Otherwise, it raises a RuntimeError.
-pub fn executer(py: Python, handler: Py<PyAny>, args: String) -> PyResult<Py<PyAny>> {
+pub fn _executer(py: Python, handler: Py<PyAny>, args: String) -> PyResult<Py<PyAny>> {
     // Import asyncio and get the running loop
     let asyncio = py.import("asyncio")?;
 

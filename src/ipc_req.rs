@@ -5,16 +5,6 @@ use wry::http::Request;
 
 use crate::RuntimeMessage;
 
-/// A serializable representation of an incoming [`Request`].
-///
-/// Contains:
-/// - HTTP method (`GET`, `POST`, …),
-/// - URI,
-/// - Version (`HTTP/1.1`, `HTTP/2`),
-/// - Headers as `HashMap<String, String>`,
-/// - Body of generic type `T` (e.g., `String`).
-///
-/// This type can be serialized to JSON using [`serde`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SerdeRequest<T> {
     /// HTTP method of the request (e.g. `"POST"`).
@@ -80,8 +70,9 @@ impl<T: Serialize> From<Request<T>> for SerdeRequest<T> {
             match handler.call1(py, (json,)) {
                 Ok(res) => {
                     let proxy = p.clone();
-                    let script = res.extract::<String>(py).unwrap();
-                    let _ = proxy.send_event(RuntimeMessage::Eval(script));
+                    if let Ok(Some(script)) = res.extract::<Option<String>>(py) {
+                        let _ = proxy.send_event(RuntimeMessage::Eval(script));
+                    }
                 }
                 Err(error) => {
                     eprintln!("Some Error: {:?}", error);
