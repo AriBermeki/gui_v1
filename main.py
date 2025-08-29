@@ -1,6 +1,6 @@
 import asyncio
 from frame import create_webframe
-from frame_api import handle_ipc_message, ipc_command
+from frame_api import handle_ipc_message, ipc_command,  handle_event_loop_response, gui_endless_event_loop_tasks
 from pathlib import Path
 
 # Path object for current script
@@ -47,5 +47,6 @@ if __name__ == "__main__":
     """
     create_webframe(
         handler=on_ipc,
-        html=html
+        html=html,
+        event_sender=gui_endless_event_loop_tasks
     )
