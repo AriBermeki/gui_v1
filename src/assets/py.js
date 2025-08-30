@@ -37,7 +37,7 @@
       };
       console.log(message)
 
-      window.ipc.postMessage(message);
+      window.ipc.postMessage(JSON.stringify(message));
     });
   }
 

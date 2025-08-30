@@ -60,11 +60,18 @@ async def handle_ipc_message(raw: str) -> str:
     """
     try:
         msg = json.loads(raw)
+        print(f"IPC msg: {msg})")
+        if not isinstance(msg, dict):
+            raise ValueError("Invalid IPC message format (not an object)")
+        body: str = json.loads(msg.get("body", ""))
+        if not isinstance(body, dict):
+            raise ValueError("Invalid IPC message body (not an object)")
+        msg = body
         cmd: str = msg["cmd"]
+        # print(f"IPC command received: {cmd}({args})")
         result_id: str = msg["result_id"]
         error_id: str = msg["error_id"]
         args: list[Any] = msg.get("payload", [])
-
         try:
             result = await dispatch(cmd, args)
             # Erfolgreich → Callback aufrufen
@@ -76,5 +83,6 @@ async def handle_ipc_message(raw: str) -> str:
         return js_code
 
     except Exception as e:
+        print(f"IPC handling error: {e}")
         # Top-Level Fehler → ebenfalls als String zurückgeben
-        return f"console.error('IPC error: {json.dumps(str(e))}');"
+        return f"""console.error("IPC error: {str(e)}");"""

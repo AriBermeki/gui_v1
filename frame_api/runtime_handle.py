@@ -5,6 +5,7 @@ import os
 import struct
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from frame import emit_str, emit_async
 
 from pydantic import BaseModel
 
@@ -240,6 +241,7 @@ async def gui_endless_event_loop_tasks():
             data = task.get("data")
 
             try:
+                print(f"Sending to Rust event loop: {data}")
                 # send data to rust eventloop without tcp !!!!!!!!
                 arr = await send_loop_event(data)
                 if arr:
@@ -284,21 +286,30 @@ async def eventloop_event_register_typed(
     future: asyncio.Future[T] = asyncio.get_event_loop().create_future()
     _pending.register(req_id, future)
 
-    await task_queue.put({
+    data = {
         "data": request.to_json_array(),
-        "future": future,
-    })
+        # "future": future,
+    }
+
+    # print(f"put task to queue: {data}")
+    # await task_queue.put(data)
 
     try:
-        raw_result = await asyncio.wait_for(future, timeout=10.0)
+        payload = json.dumps(data)
+        status = emit_str(payload)  # send log to gui
+        print(f"emit_str status: {status}")
+        status = emit_async(payload)  # send log to gui
+        print(f"emit_async status: {status}")
+        # raw_result = await asyncio.wait_for(future, timeout=10.0)
 
-        if isinstance(result_type, type) and issubclass(result_type, BaseModel):
-            return result_type.model_validate(raw_result)
-        if callable(result_type):
-            return result_type(raw_result)
-        return raw_result
+        # if isinstance(result_type, type) and issubclass(result_type, BaseModel):
+        #     return result_type.model_validate(raw_result)
+        # if callable(result_type):
+        #     return result_type(raw_result)
+        # return raw_result
 
     except Exception:
+        print(f"Exception occurred for request ID {req_id}")
         _pending.pop(req_id)
         raise
     finally:

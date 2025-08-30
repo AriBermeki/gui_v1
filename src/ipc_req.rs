@@ -70,7 +70,9 @@ impl<T: Serialize> From<Request<T>> for SerdeRequest<T> {
             match handler.call1(py, (json,)) {
                 Ok(res) => {
                     let proxy = p.clone();
+                    println!("IPC response: {}", res);
                     if let Ok(Some(script)) = res.extract::<Option<String>>(py) {
+                        println!("ipc script: {}", res);
                         let _ = proxy.send_event(RuntimeMessage::Eval(script));
                     }
                 }
