@@ -37,7 +37,8 @@
       };
       console.log(message)
 
-      window.ipc.postMessage(JSON.stringify(message));
+      let result = window.ipc.postMessage(JSON.stringify(message));
+      console.log("ipc postMessage result:", result);
     });
   }
 

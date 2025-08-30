@@ -60,7 +60,7 @@ async def handle_ipc_message(raw: str) -> str:
     """
     try:
         msg = json.loads(raw)
-        print(f"IPC msg: {msg})")
+        print(f"From IPC frontend: {msg})")
         if not isinstance(msg, dict):
             raise ValueError("Invalid IPC message format (not an object)")
         body: str = json.loads(msg.get("body", ""))
@@ -75,10 +75,15 @@ async def handle_ipc_message(raw: str) -> str:
         try:
             result = await dispatch(cmd, args)
             # Erfolgreich → Callback aufrufen
-            js_code = f"window._{result_id}({json.dumps(result)});"
+            print("ipc cmd result:", result)
+            # raise NotImplementedError("currently not implemented")
+            # js_code = f"window._{result_id}({json.dumps(result)});"
+            js_code = f"""console.log('{cmd} executed');"""
         except Exception as e:
             # Fehler → Error-Callback
-            js_code = f"window._{error_id}({json.dumps(str(e))});"
+            js_code = f"""console.log('error occurred while executing {cmd}: {str(e)}');"""
+            print(js_code)
+            # js_code = f"window._{error_id}({json.dumps(str(e))});"
 
         return js_code
 

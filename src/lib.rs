@@ -28,15 +28,14 @@
 //! some test
 //! ```
 use once_cell::sync::Lazy;
-use std::sync::{Mutex, Once};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
+use std::sync::{Mutex};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use pyo3::prelude::*;
-use serde_json::Value;
+use serde::{Serialize, Deserialize};
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
 };
-use pyo3_async_runtimes::tokio;
 
 /// Custom user-defined messages that can be dispatched
 /// through Tao’s event loop as `UserEvent`.
@@ -48,36 +47,21 @@ mod executpy;
 mod ipc_req;
 
 
-static EVENT_QUEUE: Lazy<Mutex<(UnboundedSender<Value>, Option<UnboundedReceiver<Value>>)>> = Lazy::new(|| {
-        let (tx, rx) = unbounded_channel();
-        Mutex::new((tx, Some(rx)))
-    });
-
-
-
-fn start_event_consumer() -> PyResult<()> {
-    START_CONSUMER_ONCE.call_once(|| {
-        let rx = {
-            let mut guard = EVENT_QUEUE.lock().unwrap();
-            guard.1.take()
-        };
-
-        if let Some(mut rx) = rx {
-            if let Ok(rt) = tokio::get_runtime() {
-                rt.spawn(async move {
-                    while let Some(event) = rx.recv().await {
-                        println!("[Rust] Received event: {:?}", event);
-                        // Handle event here
-                    }
-                });
-            } else {
-                eprintln!("Failed to get Python asyncio runtime");
-            }
-        }
-    });
-
-    Ok(())
+// Define the message structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Message {
+    message: String,
+    #[serde(default)]
+    timestamp: Option<String>,
+    // Add more fields as needed
 }
+
+static MESSAGE_CHANNEL: Lazy<Mutex<Option<UnboundedSender<Message>>>> = Lazy::new(|| {
+    Mutex::new(None)
+});
+
+
+
 /// Creates a native window with an embedded WebView.
 ///
 /// This function:
@@ -116,7 +100,38 @@ fn create_webframe(handler: Py<PyAny>, html: String) -> PyResult<()> {
         .with_devtools(true)
         .build(&window)
         .map_err(|err| pyo3::exceptions::PyRuntimeError::new_err(err.to_string()))?;
+    
+    
+    // Creates and enter Tokio runtime for async tasks.
+    let runtime = tokio::runtime::Runtime::new()
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let _guard = runtime.enter();
+    
+    // Create separate channels for communication between Python and Rust
+    let (py_to_rust_tx, mut py_to_rust_rx) = unbounded_channel();
+    let (rust_to_py_tx, mut rust_to_py_rx) = unbounded_channel();
+    
+    // Store the sender in our static variable
+    *MESSAGE_CHANNEL.lock().unwrap() = Some(py_to_rust_tx.clone());
 
+    // Spawn background tasks before running the event loop
+    // This async task is to receive events from python and process them in rust.
+    tokio::spawn(async move {
+        while let Some(msg) = py_to_rust_rx.recv().await {
+            println!("Rust got: {:?}", msg);
+            // Sending resp back to python
+            rust_to_py_tx.send("pong from rust").unwrap();
+        }
+    });
+
+    // This async task is to send events to python received from rust.
+    tokio::spawn(async move {
+        while let Some(reply) = rust_to_py_rx.recv().await {
+            println!("Python got: {}", reply);
+        }
+    });
+
+    // Starting tao eventloop for handling gui events. 
     event_loop.run(move |event, _window_target, flow: &mut ControlFlow| {
         *flow = ControlFlow::Wait;
         match event {
@@ -134,7 +149,8 @@ fn create_webframe(handler: Py<PyAny>, html: String) -> PyResult<()> {
                     println!("Evaluating script: {}", script);
                     let result = _webview.evaluate_script(&script);
                     // Handle result or error if needed
-                    match result {Ok(r) => {
+                    match result {
+                        Ok(r) => {
                         // print the value of result, if its ok.
                         println!("Script evaluated successfully: {:?}", r);
                     }
@@ -145,13 +161,11 @@ fn create_webframe(handler: Py<PyAny>, html: String) -> PyResult<()> {
             _ => {}
         }
     });
-
-    println!("Event loop exited");
-    Ok(())
 }
 
 
-static START_CONSUMER_ONCE: Once = Once::new();
+// Dump code
+// static START_CONSUMER_ONCE: Once = Once::new();
 // fn start_event_consumer() {
 //     START_CONSUMER_ONCE.call_once(|| {
 //         let rx = {
@@ -176,42 +190,38 @@ static START_CONSUMER_ONCE: Once = Once::new();
 
 #[pyfunction]
 fn emit_str(json: &str) -> PyResult<()> {
+    // Parse JSON into our Message structure
+    let message: Message = serde_json::from_str(json)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Invalid JSON: {}", e)))?;
     
-    // Python::with_gil(|py| {
-    let parsed: Value = serde_json::from_str(json).map_err(|err| {
-        pyo3::exceptions::PyValueError::new_err(format!("Invalid JSON: {}", err))
-    })?;
-    
-    println!("Event received from python: {}", parsed);
-    // Try sending to the event queue
-    let queue = EVENT_QUEUE.lock().unwrap();
-        queue.0.send(parsed).map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!("Queue send failed: {}", e))
-    })?;
-    
-    start_event_consumer();
-    Ok(())
+    if let Some(sender) = MESSAGE_CHANNEL.lock().unwrap().as_ref() {
+        println!("[RUST] event sent to Rust: {:?}", message);
+        sender.send(message)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to send message: {}", e)))?;
+        Ok(())
+    } else {
+        Err(pyo3::exceptions::PyRuntimeError::new_err("Channel not initialized"))?
+    }
 }
 
 
 #[pyfunction]
 fn emit_async<'a>(py: Python<'a>, json: &'a str) -> PyResult<pyo3::Bound<'a, pyo3::PyAny>> {
-    let json = json.to_string(); // clone for async move
+    // Parse JSON into our Message structure
+    let message: Message = serde_json::from_str(json)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Invalid JSON: {}", e)))?;
 
-    pyo3_async_runtimes::tokio::future_into_py(py, async move {
-        let parsed: Value = serde_json::from_str(&json)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        // println!("Async event: {}", parsed);
-        
-        // Try sending to the event queue
-        let queue = EVENT_QUEUE.lock().unwrap();
-        queue.0.send(parsed).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(format!("Queue send failed: {}", e))
-        })?;
-
-        // Return None or awaitable resolved immediately
-        Python::with_gil(|py| Ok(py.None()))
-    })
+    if let Some(sender) = MESSAGE_CHANNEL.lock().unwrap().as_ref() {
+        let sender = sender.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            println!("[RUST] (async) event sent to Rust: {:?}", message);
+            sender.send(message)
+                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to send message: {}", e)))?;
+            Python::with_gil(|py| Ok(py.None()))
+        })
+    } else {
+        Err(pyo3::exceptions::PyRuntimeError::new_err("Channel not initialized"))?
+    }
 }
 
 

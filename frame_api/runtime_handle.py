@@ -287,7 +287,7 @@ async def eventloop_event_register_typed(
     _pending.register(req_id, future)
 
     data = {
-        "data": request.to_json_array(),
+        "message": str(request.to_json_array()),
         # "future": future,
     }
 
@@ -296,10 +296,11 @@ async def eventloop_event_register_typed(
 
     try:
         payload = json.dumps(data)
+        print("event emit to rust:", payload)
         status = emit_str(payload)  # send log to gui
-        print(f"emit_str status: {status}")
-        status = emit_async(payload)  # send log to gui
-        print(f"emit_async status: {status}")
+        # print(f"emit_str status: {status}")
+        # status = emit_async(payload)  # send log to gui
+        # print(f"emit_async status: {status}")
         # raw_result = await asyncio.wait_for(future, timeout=10.0)
 
         # if isinstance(result_type, type) and issubclass(result_type, BaseModel):

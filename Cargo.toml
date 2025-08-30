@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "=0.25", features = ["anyhow", "extension-module", "generate-import-lib"] }
 pyo3-log = "=0.12"
-pyo3-async-runtimes = { version = "0.25", features = ["tokio-runtime"] }
+pyo3-async-runtimes = { version = "0.25", features = ["tokio", "tokio-runtime"] }
 pyo3-async-runtimes-macros = { version = "0.25" }
 tokio = { version = "1.45.1", features = ["full"] }
 async-trait = "0.1.88"
